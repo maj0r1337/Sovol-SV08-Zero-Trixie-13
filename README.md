@@ -272,3 +272,5 @@ max_fps: 30                             # If hardware supports it, it will be fo
 ```
 START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single]
 ```
+# Credits
+Thx to [Rappetor]([https://imager.armbian.com/#downloads](https://github.com/Rappetor/Sovol-SV08-Mainline)), [Blenky56]([https://imager.armbian.com/#downloads](https://github.com/Blenky56/Flashing-Klipper-to-Sovol-ZERO-Toolhead-on-the-SV08)) and [ljg-dev]([https://imager.armbian.com/#downloads](https://github.com/ljg-dev/sovol-sv08-mainline/tree/main?tab=readme-ov-file))
