@@ -12,16 +12,16 @@
 > Voraussetzung ist, dass der Drucker bereits mit Mainline-Klipper unter Debian 11 funktioniert.
 >
 > Diese Anleitung ist nicht für einen SV08 mit der originalen Sovol-Firmware gedacht.
-> Erstellt IMMER vor dem Beginn ein vollständiges Backup eurer Klipper-Konfiguration oder Speicherkarte.
+> Erstelle IMMER vor dem Beginn ein vollständiges Backup deiner Klipper-Konfiguration oder Speicherkarte.
 
 ### Neuestes Armbian-Image herunterladen und flashen
-Ladet den [Armbian Imager](https://imager.armbian.com/#downloads) herunter und startet ihn.
-1. Sucht nach BigTreeTech.
-2. Wählt das CB1 aus.
-3. Wählt ein aktuelles Minimal-Image aus.
-4. Wählt die zu beschreibende SD-Karte beziehungsweise den eMMC-Speicher aus.
-5. Öffnet über das Zahnradsymbol die Profileinstellungen.
-6. Erstellt ein neues Profil und hinterlegt die folgenden Werte:
+Lade den [Armbian Imager](https://imager.armbian.com/#downloads) herunter und starte ihn.
+1. Suche nach BigTreeTech.
+2. Wähle das CB1 aus.
+3. Wähle ein aktuelles Minimal-Image aus.
+4. Wähle die zu beschreibende SD-Karte beziehungsweise den eMMC-Speicher aus.
+5. Öffne über das Zahnradsymbol die Profileinstellungen.
+6. Erstelle ein neues Profil und hinterlege die folgenden Werte:
 
 | Einstellung  | Wert |
 | ------------- | ------------- |
@@ -34,19 +34,19 @@ Ladet den [Armbian Imager](https://imager.armbian.com/#downloads) herunter und s
 | Vollständiger Name | Biqu |
 | Anmelde-Shell | bash |
 
-Wählt anschließend das erstellte Autoconfig-Profil aus und klickt auf Löschen & Flashen.
+Wähle anschließend das erstellte Autoconfig-Profil aus und klicke auf Löschen & Flashen.
 
-Entfernt den Speicher nach Abschluss des Flashvorgangs sicher, setzt ihn in den Drucker ein und startet den Drucker.
+Entferne den Speicher nach Abschluss des Flashvorgangs sicher, setze ihn in den Drucker ein und startet den Drucker.
 
 ### System aktualisieren
 
-Meldet euch per SSH an und aktualisiert zunächst das System:
+Melde dich per SSH an und aktualisiert zunächst das System:
 
 ```
 sudo apt update && sudo apt upgrade -y && sudo apt dist-upgrade -y && sudo apt autoremove -y && sudo apt autoclean -y
 ```
 
-Installiert anschließend die benötigten Pakete:
+Installiere anschließend die benötigten Pakete:
 
 ```
 sudo apt install -y git python3-pip python3-serial
@@ -62,7 +62,7 @@ git clone https://github.com/dw-0/kiauh.git
 ./kiauh/kiauh.sh
 ```
 
-Sobald KIAHU gestartet ist, wählt im KIAUH-Hauptmenü:
+Sobald KIAHU gestartet ist, wähle im KIAUH-Hauptmenü:
 | Einstellung  | Wert |
 | ------------- | ------------- |
 | 1. | 1.Install |
@@ -74,14 +74,14 @@ Sobald KIAHU gestartet ist, wählt im KIAUH-Hauptmenü:
 | 7. |    KlipperScreen|
 
 > [!NOTE]
-> Startet den Drucker nach der Installation von Crowsnest nicht neu sondern installiert KlipperScreen vorher. KlipperScreen macht einen automatischen Neustart.
+> Starte den Drucker nach der Installation von Crowsnest nicht neu sondern installiere KlipperScreen vorher. KlipperScreen macht einen automatischen Neustart.
 > 
-Nach dem automatischen reboot, startet ihr KIAHU erneut und wählt 
+Nach dem automatischen reboot, starte KIAHU erneut und wähle 
 4. Advanced aus und installiert 5. Input Shaper
 
 ### Moonraker Timelapse installieren
 
-Installiert zunächst das Timelapse-Modul:
+Installiere zunächst das Timelapse-Modul:
 
 ```
 cd ~/
@@ -90,7 +90,7 @@ cd ~/moonraker-timelapse
 make install
 ```
 
-Fügt anschließend am Ende von moonraker.conf Folgendes ein: (entweder über Mainsail oder über `sudo nano ~/printer_data/config/moonraker.conf`)
+Füge anschließend am Ende von der moonraker.conf Folgendes ein: (entweder über Mainsail oder über `sudo nano ~/printer_data/config/moonraker.conf`)
 
 ```
 [update_manager timelapse]
@@ -109,26 +109,24 @@ output_path: ~/timelapse/                ##   Directory where the generated vide
 frame_path: /tmp/timelapse/              ##   Directory where the temporary frames are saved
 ffmpeg_binary_path: /usr/bin/ffmpeg      ##   Directory where ffmpeg is installed
 ```
-Prüft außerdem, ob die Datei timelapse.cfg vorhanden ist und in printer.cfg eingebunden wird:
+Prüfe außerdem, ob die Datei timelapse.cfg vorhanden ist und in die printer.cfg eingebunden wird:
 ```
 [include timelapse.cfg]
 ```
 Ohne diese Einbindung stehen die Timelapse-Makros in Klipper nicht zur Verfügung. Für Aufnahmen bei jedem Layerwechsel muss zusätzlich das Makro TIMELAPSE_TAKE_FRAME im Slicer eingefügt werden.
 
 ### Gesicherte Konfiguration wiederherstellen
-Übertragt die zuvor gesicherten Konfigurationsdateien per SFTP zurück auf den Drucker.
+Übertrage die zuvor gesicherten Konfigurationsdateien per SFTP zurück auf den Drucker.
 
-Überprüft insbesondere:
+Überprüfe insbesondere:
 `printer.cfg`
 `moonraker.conf`
 `mainsail.cfg`
 `crowsnest.conf`
 weitere druckerspezifische Konfigurationsdateien
 
-
-
 ### Sovol-Erweiterungen wiederherstellen
-Übertragt die beiden Dateien per SFTP in das Verzeichnis:
+Übertrage die beiden Dateien per SFTP in das Verzeichnis:
 ```
 /home/biqu/klipper/klippy/extras/
 ```
@@ -145,7 +143,7 @@ sudo reboot
 ```
 
 > [!TIP]
-> Sollte der Drucker zu irgendeinem Zeitpunkt einfrieren, schalten wir ihn per Netzschalter einfach aus, warten 10 Sekunden und schalten ihn wieder ein. Den Fehler beheben wir jetzt in den nächsten Schritten.
+> Sollte der Drucker zu irgend einem Zeitpunkt einfrieren, schalte ihn per Netzschalter einfach aus, warte 10 Sekunden und schalte ihn wieder ein. Der Fehler wird in den nächsten Schritten behoben.
 
 ### CAN-Schnittstelle dauerhaft konfigurieren
 
@@ -231,7 +229,7 @@ ExecStop=/usr/local/bin/disconnect-can.sh
 WantedBy=multi-user.target
 ```
 
-Aktiviert den Dienst:
+Aktiviere den Dienst:
 
 ```
 sudo systemctl daemon-reload
@@ -240,7 +238,7 @@ sudo systemctl start can-shutdown.service
 ```
 
 ### Automatisches MCU update Script laden und bearbeiten
-Lade das Script herunter und kopiert es per sFTP in das Klipper Verzeichnis. Führt dann folgendes aus und
+Lade das Script herunter und kopier es per sFTP in das Klipper Verzeichnis. Führ dann folgendes aus und
 editiert eure MCU's rein.
 
 ```
@@ -252,9 +250,10 @@ HOSTSERIAL='38FFD9053347533826722551-if00'  # Main Board MCU  Replace with your 
 TOOLHEADUUID=('628786656b14') # ZERO TH CAN serial number from Printer.cfg --> UUID: 27ed790d8665  STOCK: 61755fe321ac  Replace with your UUID numbers
 FLASHTOOLHEAD=('61755fe321ac')
 ```
+Wenn die ID's passen, könnt ihr den 
 
 ### Webcam anpassen
-Öffnet dazu auf dem Drucker die crowsnest.conf und passt den Inhalt wie folgt an.
+Öffne dazu auf dem Drucker die crowsnest.conf und passe den Inhalt wie folgt an.
 
 ```
 [cam 1]
