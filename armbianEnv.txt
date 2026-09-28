@@ -1,0 +1,12 @@
+verbosity=1
+bootlogo=false
+console=display
+overlay_prefix=sun50i-h616
+#fdtfile=sun50i-h616-bigtreetech-cb1-emmc.dtb
+fdtfile=sun50i-h616-sovol-sv08.dtb
+overlays=uart3
+overlays=ws2812
+overlays=spidev1_1
+rootdev=UUID=50fbe113-a383-4d6f-bd89-e6456ad52bdb
+rootfstype=ext4
+usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u
