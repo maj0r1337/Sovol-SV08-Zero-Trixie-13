@@ -236,6 +236,65 @@ sudo systemctl daemon-reload
 sudo systemctl enable can-shutdown.service
 sudo systemctl start can-shutdown.service
 ```
+### qlen dauerhaft auf 128 setzen
+
+Script anlegen
+```
+sudo nano /usr/local/sbin/set-can0-queue.sh
+```
+Inhalt:
+```
+#!/bin/bash
+
+# Warten, bis can0 vom USB-CAN-Adapter angelegt wurde
+for i in {1..30}; do
+    if ip link show can0 >/dev/null 2>&1; then
+        /sbin/ip link set can0 txqueuelen 128
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "can0 wurde nicht gefunden" >&2
+exit 1
+```
+Ausführbar machen:
+```
+sudo chmod +x /usr/local/sbin/set-can0-queue.sh
+```
+### systemd-Service erstellen
+```
+sudo nano /etc/systemd/system/set-can0-queue.service
+```
+Inhalt:
+```
+[Unit]
+Description=Set CAN0 transmit queue length
+After=network-online.target
+Wants=network-online.target
+Before=klipper.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/set-can0-queue.sh
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+```
+Aktivieren:
+```
+sudo systemctl daemon-reload
+sudo systemctl enable set-can0-queue.service
+sudo systemctl start set-can0-queue.service
+```
+Prüfen:
+```
+systemctl status set-can0-queue.service
+ip -details link show can0
+```
 
 ### Automatisches MCU update Script laden und bearbeiten
 Lade das Script herunter und kopier es per sFTP in das Klipper Verzeichnis. Führ dann folgendes aus und
