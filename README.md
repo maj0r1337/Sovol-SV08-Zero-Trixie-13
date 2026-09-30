@@ -72,6 +72,10 @@ Sobald KIAHU gestartet ist, wähle im KIAUH-Hauptmenü:
 | 3. |    Mainsail |
 | 8. |    Crowsnest (am ende nicht neustarten!!!) und anschließend |
 | 7. |    KlipperScreen|
+| --------- | ---------|
+| B | - |
+| 4. | Advanced |
+| 5. | Inputshaper |
 
 > [!NOTE]
 > Starte den Drucker nach der Installation von Crowsnest nicht neu sondern installiere KlipperScreen vorher. KlipperScreen macht einen automatischen Neustart.
@@ -145,9 +149,11 @@ sudo reboot
 > [!TIP]
 > Sollte der Drucker zu irgend einem Zeitpunkt einfrieren, schalte ihn per Netzschalter einfach aus, warte 10 Sekunden und schalte ihn wieder ein. Der Fehler wird in den nächsten Schritten behoben.
 ---
+
 > [!CAUTION]
 > Ich empfehle dir folgende Variante zu verwenden da es sehr viel schneller und einfacher ist:
-> # Führe das Skript nur ein mal aus!!! 
+> ## Führe das Skript nur ein mal aus!!!
+
 
 ### CAN-Schnittstelle dauerhaft konfigurieren (AUTOMATISCH Empfohlen)
 Lade das install-sv08-can.sh Script herunger und lade es in das Verzeichnis /home/biqu per SFTP hoch.
@@ -157,6 +163,8 @@ Führe anschließend folgendes aus:
 chmod +x install-sv08-can.sh
 sudo ./install-sv08-can.sh
 ```
+Prüfe ob die Schnittstelle aktiv ist und ob 128 qlen eingestellt sind.
+
 ---
 
 > [!CAUTION]
@@ -314,8 +322,12 @@ ip -details link show can0
 ```
 
 ### Automatisches MCU update Script laden und bearbeiten
-Lade das Script herunter und kopier es per SFTP in das Klipper Verzeichnis. Führ dann folgendes aus und
-editiert eure MCU's rein.
+Lade das Script herunter und kopier es per SFTP in das home/biqu/klipper Verzeichnis. Führ dann folgendes aus und
+trage DEINE MCU ID's ein.
+
+```
+sudo nano ~/klipper/update_klipper_mcus_sv08.sh
+```
 
 ```
 #I'm a string, so I look like: HOSTSERIAL='XXXXXXXX'
@@ -326,8 +338,18 @@ HOSTSERIAL='38FFD9053347533826722551-if00'  # Main Board MCU  Replace with your 
 TOOLHEADUUID=('628786656b14') # ZERO TH CAN serial number from Printer.cfg --> UUID: 27ed790d8665  STOCK: 61755fe321ac  Replace with your UUID numbers
 FLASHTOOLHEAD=('61755fe321ac')
 ```
-Wenn die ID's passen, könnt ihr den 
+Speicher die Änderungen mit Strg+S und schließe die Datei mit Strg+X
 
+Wenn die ID's passen, kannst du den Vorgang starten.
+
+Macht das Skript ausführbar
+```
+chmod +x ~/klipper/update_klipper_mcus_sv08.sh
+```
+Führe das Skript jetzt aus
+```
+cd "$HOME/klipper" && ./update_klipper_mcus_sv08.sh
+```
 ---
 
 ### Webcam anpassen
