@@ -144,8 +144,33 @@ sudo reboot
 
 > [!TIP]
 > Sollte der Drucker zu irgend einem Zeitpunkt einfrieren, schalte ihn per Netzschalter einfach aus, warte 10 Sekunden und schalte ihn wieder ein. Der Fehler wird in den nächsten Schritten behoben.
+---
+> [!CAUTION]
+> Ich empfehle dir folgende Variante zu verwenden da es sehr viel schneller und einfacher ist:
 
-### CAN-Schnittstelle dauerhaft konfigurieren
+### CAN-Schnittstelle dauerhaft konfigurieren (AUTOMATISCH Empfohlen)
+Lade das install-sv08-can.sh Script herunger und lade es in das Verzeichnis /home/biqu per SFTP hoch.
+Führe anschließend folgendes aus:
+
+```
+chmod +x install-sv08-can.sh
+sudo ./install-sv08-can.sh
+```
+Solltest du das Script schon einmal ausgeführt haben, benutze bitte folgenden Befehl damit das Script erst sauber macht bevor es erneut ausgeführt wird.
+
+```
+sudo /home/biqu/install-sv08-can.sh --force
+```
+Zum entfernen des Scripts, führst du folgenden Befehl aus_
+```
+sudo /home/biqu/install-sv08-can.sh --remove
+```
+---
+
+> [!CAUTION]
+> Ich empfehle dir folgende Variante zu verwenden wenn du meinem Script nicht traust (auch wenn es das selbe macht):
+
+### CAN-Schnittstelle dauerhaft konfigurieren (MANUELL)
 
 > [!TIP]
 > Unter Debian 13 wird die alte Methode über /etc/network/interfaces oft ignoriert oder führt zu Fehlern. Nutze stattdessen das modernere systemd-networkd:
@@ -297,7 +322,7 @@ ip -details link show can0
 ```
 
 ### Automatisches MCU update Script laden und bearbeiten
-Lade das Script herunter und kopier es per sFTP in das Klipper Verzeichnis. Führ dann folgendes aus und
+Lade das Script herunter und kopier es per SFTP in das Klipper Verzeichnis. Führ dann folgendes aus und
 editiert eure MCU's rein.
 
 ```
@@ -310,6 +335,8 @@ TOOLHEADUUID=('628786656b14') # ZERO TH CAN serial number from Printer.cfg --> U
 FLASHTOOLHEAD=('61755fe321ac')
 ```
 Wenn die ID's passen, könnt ihr den 
+
+---
 
 ### Webcam anpassen
 Öffne dazu auf dem Drucker die crowsnest.conf und passe den Inhalt wie folgt an.
@@ -324,6 +351,7 @@ max_fps: 30                             # If hardware supports it, it will be fo
 #custom_flags:                          # You can run the stream services with custom flags.
 #v4l2ctl:                               # Add v4l2-ctl parameters to set up your camera, see log for your camera capabilities.
 ```
+---
 
 > [!IMPORTANT]
 > ### Start Print Makro im OrcaSlicer anpassen
@@ -331,5 +359,6 @@ max_fps: 30                             # If hardware supports it, it will be fo
 ```
 START_PRINT EXTRUDER_TEMP=[nozzle_temperature_initial_layer] BED_TEMP=[bed_temperature_initial_layer_single]
 ```
+---
 # Credits
 Thx to [Rappetor](https://github.com/Rappetor/Sovol-SV08-Mainline), [Blenky56](https://github.com/Blenky56/Flashing-Klipper-to-Sovol-ZERO-Toolhead-on-the-SV08) and [ljg-dev](https://github.com/ljg-dev/sovol-sv08-mainline/tree/main?tab=readme-ov-file)
