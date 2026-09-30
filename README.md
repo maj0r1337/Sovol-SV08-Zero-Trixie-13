@@ -147,6 +147,7 @@ sudo reboot
 ---
 > [!CAUTION]
 > Ich empfehle dir folgende Variante zu verwenden da es sehr viel schneller und einfacher ist:
+> # Führe das Skript nur ein mal aus!!! 
 
 ### CAN-Schnittstelle dauerhaft konfigurieren (AUTOMATISCH Empfohlen)
 Lade das install-sv08-can.sh Script herunger und lade es in das Verzeichnis /home/biqu per SFTP hoch.
@@ -155,15 +156,6 @@ Führe anschließend folgendes aus:
 ```
 chmod +x install-sv08-can.sh
 sudo ./install-sv08-can.sh
-```
-Solltest du das Script schon einmal ausgeführt haben, benutze bitte folgenden Befehl damit das Script erst sauber macht bevor es erneut ausgeführt wird.
-
-```
-sudo /home/biqu/install-sv08-can.sh --force
-```
-Zum entfernen des Scripts, führst du folgenden Befehl aus_
-```
-sudo /home/biqu/install-sv08-can.sh --remove
 ```
 ---
 
