@@ -435,6 +435,41 @@ msg() {
 }
 
 # ============================================================
+# Check existing configuration files
+# ============================================================
+
+REQUIRED_CONFIG_FILES=(
+    "$NETWORK_FILE"
+)
+
+MISSING_CONFIG_FILES=()
+
+for file in "${REQUIRED_CONFIG_FILES[@]}"; do
+    if [[ ! -f "$file" ]]; then
+        MISSING_CONFIG_FILES+=("$file")
+    fi
+done
+
+# If all required configuration files already exist, stop.
+if [[ ${#MISSING_CONFIG_FILES[@]} -eq 0 ]]; then
+    echo
+    echo "============================================================"
+
+    if [[ "$LANGUAGE" == "de" ]]; then
+        echo "Alle Konfigurationsdateien sind bereits vorhanden."
+        echo "Die Konfiguration ist bereits auf dem neuesten Stand."
+    else
+        echo "All configuration files are already present."
+        echo "The configuration is already up to date."
+    fi
+
+    echo "============================================================"
+    echo
+
+    exit 0
+fi
+
+# ============================================================
 # Helper functions
 # ============================================================
 
