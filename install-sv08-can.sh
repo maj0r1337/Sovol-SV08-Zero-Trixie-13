@@ -18,6 +18,8 @@ MOONRAKER_SERVICE="moonraker.service"
 
 MOONRAKER_URL="http://127.0.0.1:7125"
 NETWORK_FILE="/etc/systemd/network/80-can0.network"
+CAN_QUEUE_SCRIPT="/usr/local/sbin/set-can0-queue.sh"
+CAN_QUEUE_SERVICE="/etc/systemd/system/set-can0-queue.service"
 
 BACKUP_DIR="/root/sv08-can-backups/$(date +%Y%m%d-%H%M%S)"
 
@@ -220,6 +222,26 @@ msg() {
                     "Bitte in Mainsail manuell FIRMWARE_RESTART ausführen."
                 ;;
 
+            create_queue_script)
+                printf '%s\n' "Erstelle dauerhafte CAN-TX-Queue-Konfiguration"
+                ;;
+
+            create_queue_service)
+                printf '%s\n' "Erstelle systemd-Service für dauerhafte CAN-TX-Queue"
+                ;;
+
+            enable_queue_service)
+                printf '%s\n' "Aktiviere und starte CAN-TX-Queue-Service"
+                ;;
+
+            queue_service_error)
+                printf '%s\n' "Der CAN-TX-Queue-Service konnte nicht aktiviert oder gestartet werden."
+                ;;
+
+            queue_service_active)
+                printf '%s\n' "CAN-TX-Queue-Service ist aktiv."
+                ;;
+
             completed)
                 printf '%s\n' "Vorgang abgeschlossen"
                 ;;
@@ -415,6 +437,26 @@ msg() {
                     "Please run FIRMWARE_RESTART manually in Mainsail."
                 ;;
 
+            create_queue_script)
+                printf '%s\n' "Creating persistent CAN TX queue configuration"
+                ;;
+
+            create_queue_service)
+                printf '%s\n' "Creating systemd service for persistent CAN TX queue"
+                ;;
+
+            enable_queue_service)
+                printf '%s\n' "Enabling and starting CAN TX queue service"
+                ;;
+
+            queue_service_error)
+                printf '%s\n' "The CAN TX queue service could not be enabled or started."
+                ;;
+
+            queue_service_active)
+                printf '%s\n' "CAN TX queue service is active."
+                ;;
+
             completed)
                 printf '%s\n' "Operation completed"
                 ;;
@@ -440,6 +482,8 @@ msg() {
 
 REQUIRED_CONFIG_FILES=(
     "$NETWORK_FILE"
+    "$CAN_QUEUE_SCRIPT"
+    "$CAN_QUEUE_SERVICE"
 )
 
 MISSING_CONFIG_FILES=()
@@ -682,6 +726,77 @@ sleep 2
 show_can_status
 
 # ============================================================
+# Install persistent CAN TX queue helper and systemd service
+# ============================================================
+
+log "$(msg create_queue_script)"
+
+mkdir -p "$(dirname "$CAN_QUEUE_SCRIPT")"
+
+cat > "$CAN_QUEUE_SCRIPT" <<'EOF'
+#!/bin/bash
+
+# Wait until can0 is created by the USB-CAN adapter
+for i in {1..30}; do
+    if /sbin/ip link show can0 >/dev/null 2>&1; then
+        /sbin/ip link set can0 txqueuelen 128
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "can0 was not found" >&2
+exit 1
+EOF
+
+chmod 0755 "$CAN_QUEUE_SCRIPT"
+
+log "$(msg create_queue_service)"
+
+cat > "$CAN_QUEUE_SERVICE" <<'EOF'
+[Unit]
+Description=Set CAN0 transmit queue length
+After=network-online.target
+Wants=network-online.target
+Before=klipper.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/set-can0-queue.sh
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+log "$(msg enable_queue_service)"
+
+if ! "$SYSTEMCTL_BIN" daemon-reload; then
+    error_exit "$(msg queue_service_error)"
+fi
+
+if ! "$SYSTEMCTL_BIN" enable set-can0-queue.service >/dev/null 2>&1; then
+    error_exit "$(msg queue_service_error)"
+fi
+
+if ! "$SYSTEMCTL_BIN" start set-can0-queue.service; then
+    error_exit "$(msg queue_service_error)"
+fi
+
+if ! "$SYSTEMCTL_BIN" is-active --quiet set-can0-queue.service; then
+    error_exit "$(msg queue_service_error)"
+fi
+
+msg queue_service_active
+
+# Re-apply the queue length immediately as a final installation safeguard.
+if ! "$IP_BIN" link set "$CAN_INTERFACE" txqueuelen "$CAN_QUEUE_LENGTH"; then
+    error_exit "$(msg queue_error "$CAN_INTERFACE")"
+fi
+
+# ============================================================
 # Restart Klipper
 # ============================================================
 
@@ -844,6 +959,7 @@ echo
 msg diagnostic_commands
 echo
 echo "  ip -details link show $CAN_INTERFACE"
+echo "  systemctl status set-can0-queue.service"
 echo "  systemctl status $KLIPPER_SERVICE"
 echo "  journalctl -u $KLIPPER_SERVICE -n 100 --no-pager"
 echo "  dmesg | grep -Ei 'can|usb|gs_usb'"
