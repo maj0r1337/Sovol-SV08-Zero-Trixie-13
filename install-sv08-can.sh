@@ -1,189 +1,208 @@
 #!/usr/bin/env bash
+
 set -Eeuo pipefail
 
 # ============================================================
-# Sovol SV08 / CB1
-# CAN Configuration for Debian/Armbian 13
+# CAN-Schnittstelle dauerhaft konfigurieren
 #
-# Included:
-# - systemd-networkd configuration for can0
-# - CAN bitrate 1,000,000
-# - TxQueueLength 128
-# - Fallback service for txqueuelen
-# - Clean unloading of gs_usb before reboot/shutdown
+# Basiert auf dem manuellen Tutorial:
+#   1. systemd-networkd CAN-Konfiguration
+#   2. Clean-Shutdown-Service
+#   3. qlen dauerhaft auf 128 setzen
+#   4. qlen systemd-Service
+#   5. Prüfung
 # ============================================================
 
-CAN_INTERFACE="can0"
-CAN_BITRATE="1000000"
-CAN_QUEUE_LENGTH="128"
-
 NETWORK_FILE="/etc/systemd/network/80-can0.network"
+DISCONNECT_SCRIPT="/usr/local/bin/disconnect-can.sh"
+SHUTDOWN_SERVICE="/etc/systemd/system/can-shutdown.service"
 QUEUE_SCRIPT="/usr/local/sbin/set-can0-queue.sh"
 QUEUE_SERVICE="/etc/systemd/system/set-can0-queue.service"
 
-SHUTDOWN_SCRIPT="/usr/local/bin/disconnect-can.sh"
-SHUTDOWN_SERVICE="/etc/systemd/system/can-shutdown.service"
+echo
+echo "============================================================"
+echo " CAN0 Installation"
+echo "============================================================"
+echo
 
-BACKUP_DIR="/root/sv08-can-backups/$(date +%Y%m%d-%H%M%S)"
-
-# Standard ist Englisch. Nur wenn die Sprache mit 'de' beginnt, wird Deutsch genutzt.
-IS_GERMAN=false
-if [[ "${LANG:-}" =~ ^de ]]; then
-    IS_GERMAN=true
-fi
-
-log() {
-    local msg_en="$1"
-    local msg_de="${2:-$1}" # Falls keine deutsche Version übergeben wurde, nimm die englische
-    echo
-    if [ "$IS_GERMAN" = true ]; then
-        echo "==> $msg_de"
-    else
-        echo "==> $msg_en"
-    fi
-}
-
-error() {
-    local msg_en="$1"
-    local msg_de="${2:-$1}"
-    echo >&2
-    if [ "$IS_GERMAN" = true ]; then
-        echo "FEHLER: $msg_de" >&2
-    else
-        echo "ERROR: $msg_en" >&2
-    fi
-    exit 1
-}
-
-backup_file() {
-    local file="$1"
-
-    if [[ -e "$file" ]]; then
-        mkdir -p "$BACKUP_DIR"
-        cp -a "$file" "$BACKUP_DIR/"
-        if [ "$IS_GERMAN" = true ]; then
-            echo "Backup erstellt: $BACKUP_DIR/$(basename "$file")"
-        else
-            echo "Backup created: $BACKUP_DIR/$(basename "$file")"
-        fi
-    fi
-}
+# ------------------------------------------------------------
+# Root-Rechte prüfen
+# ------------------------------------------------------------
 
 if [[ "${EUID}" -ne 0 ]]; then
-    error "This script must be run with sudo:
-sudo $0" \
-          "Dieses Skript muss mit sudo ausgeführt werden:
-sudo $0"
+    echo "ERROR: Dieses Skript muss als root ausgeführt werden."
+    echo "Bitte verwenden:"
+    echo "  sudo ./install-can.sh"
+    exit 1
 fi
 
-# ============================================================
-# Check if the script has already been executed
-# ============================================================
-if [[ -e "$NETWORK_FILE" || -e "$QUEUE_SCRIPT" || -e "$QUEUE_SERVICE" || -e "$SHUTDOWN_SCRIPT" || -e "$SHUTDOWN_SERVICE" ]]; then
-    echo
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    if [ "$IS_GERMAN" = true ]; then
-        echo "Das Skript wurde bereits ausgeführt und muss nicht noch einmal ausgeführt werden."
-        echo "Die Konfigurationsdateien sind bereits vorhanden."
-    else
-        echo "This script has already been executed and does not need to be run again."
-        echo "The configuration files already exist."
-    fi
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo
-    exit 0
-fi
+# ------------------------------------------------------------
+# Benötigte Programme prüfen
+# ------------------------------------------------------------
 
-log "Checking required programs" "Prüfe benötigte Programme"
+echo "==> Prüfe benötigte Programme"
 
-for command in ip systemctl modprobe; do
-    if ! command -v "$command" >/dev/null 2>&1; then
-        error "Required program not found: $command" \
-              "Benötigtes Programm nicht gefunden: $command"
+for cmd in ip systemctl modprobe; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "ERROR: Benötigtes Programm nicht gefunden: $cmd"
+        exit 1
     fi
 done
 
-log "Creating backup directory" "Erstelle Backup-Verzeichnis"
+echo "    OK"
+echo
 
-mkdir -p "$BACKUP_DIR"
+# ------------------------------------------------------------
+# 1. systemd-networkd CAN-Konfiguration
+# ------------------------------------------------------------
 
-log "Backing up existing configuration files" "Sichere vorhandene Konfigurationsdateien"
-
-backup_file "$NETWORK_FILE"
-backup_file "$QUEUE_SCRIPT"
-backup_file "$QUEUE_SERVICE"
-backup_file "$SHUTDOWN_SCRIPT"
-backup_file "$SHUTDOWN_SERVICE"
-
-log "Creating systemd-networkd configuration" "Erstelle systemd-networkd-Konfiguration"
+echo "==> 1/5 Erstelle $NETWORK_FILE"
 
 mkdir -p /etc/systemd/network
 
-cat > "$NETWORK_FILE" <<EOF
+cat > "$NETWORK_FILE" <<'EOF'
 [Match]
-Name=$CAN_INTERFACE
+Name=can0
 
 [Link]
-TxQueueLength=$CAN_QUEUE_LENGTH
+TxQueueLength=128
 
 [Network]
 CAN=true
 
 [CAN]
-BitRate=$CAN_BITRATE
+BitRate=1000000
 EOF
 
-chmod 644 "$NETWORK_FILE"
+echo "    OK"
+echo
 
-log "Creating CAN queue fallback script" "Erstelle CAN-Queue-Fallback-Skript"
+# ------------------------------------------------------------
+# systemd-networkd aktivieren und neu starten
+# ------------------------------------------------------------
+
+echo "==> Aktiviere systemd-networkd"
+
+systemctl enable systemd-networkd
+
+echo "==> Starte systemd-networkd neu"
+
+systemctl restart systemd-networkd
+
+echo "    OK"
+echo
+
+# ------------------------------------------------------------
+# 2. Clean-Shutdown-Skript
+# ------------------------------------------------------------
+
+echo "==> 2/5 Erstelle $DISCONNECT_SCRIPT"
+
+mkdir -p /usr/local/bin
+
+cat > "$DISCONNECT_SCRIPT" <<'EOF'
+#!/bin/sh
+
+if ip link show can0 >/dev/null 2>&1; then
+    /usr/sbin/ip link set can0 down
+    /usr/sbin/modprobe -r gs_usb
+fi
+EOF
+
+chmod +x "$DISCONNECT_SCRIPT"
+
+echo "    Skript erstellt und ausführbar gemacht."
+echo
+
+# ------------------------------------------------------------
+# Clean-Shutdown-Service
+# ------------------------------------------------------------
+
+echo "==> Erstelle $SHUTDOWN_SERVICE"
+
+cat > "$SHUTDOWN_SERVICE" <<'EOF'
+[Unit]
+Description=Clean CAN-Bus disconnect before reboot
+After=klipper.service systemd-networkd.service
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/local/bin/disconnect-can.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "    OK"
+echo
+
+# ------------------------------------------------------------
+# Clean-Shutdown-Service aktivieren
+# ------------------------------------------------------------
+
+echo "==> Lade systemd-Konfiguration neu"
+
+systemctl daemon-reload
+
+echo "==> Aktiviere can-shutdown.service"
+
+systemctl enable can-shutdown.service
+
+echo "==> Starte can-shutdown.service"
+
+systemctl start can-shutdown.service
+
+echo "    OK"
+echo
+
+# ------------------------------------------------------------
+# 3. qlen-Skript
+# ------------------------------------------------------------
+
+echo "==> 3/5 Erstelle $QUEUE_SCRIPT"
+
+mkdir -p /usr/local/sbin
 
 cat > "$QUEUE_SCRIPT" <<'EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 
-set -u
-
-CAN_INTERFACE="can0"
-QUEUE_LENGTH="128"
-IP_BIN="$(command -v ip)"
-
-# Wait until the USB CAN interface is available
-for attempt in {1..30}; do
-    if "$IP_BIN" link show "$CAN_INTERFACE" >/dev/null 2>&1; then
-        "$IP_BIN" link set "$CAN_INTERFACE" txqueuelen "$QUEUE_LENGTH"
-
-        CURRENT_QUEUE="$("$IP_BIN" -details link show "$CAN_INTERFACE" \
-            | sed -n 's/.*qlen \([0-9]*\).*/\1/p')"
-
-        if [[ "$CURRENT_QUEUE" == "$QUEUE_LENGTH" ]]; then
-            echo "$CAN_INTERFACE: txqueuelen=$CURRENT_QUEUE"
-            exit 0
-        fi
-
-        echo "Error: could not set txqueuelen. / Fehler: txqueuelen konnte nicht gesetzt werden." >&2
-        exit 1
+# Warten, bis can0 vom USB-CAN-Adapter angelegt wurde
+for i in {1..30}; do
+    if ip link show can0 >/dev/null 2>&1; then
+        /sbin/ip link set can0 txqueuelen 128
+        exit 0
     fi
-
     sleep 1
 done
 
-echo "$CAN_INTERFACE not found within 30 seconds. / $CAN_INTERFACE wurde innerhalb von 30 Sekunden nicht gefunden." >&2
+echo "can0 wurde nicht gefunden" >&2
 exit 1
 EOF
 
-chmod 755 "$QUEUE_SCRIPT"
+chmod +x "$QUEUE_SCRIPT"
 
-log "Creating systemd service for CAN queue" "Erstelle systemd-Service für CAN-Queue"
+echo "    Skript erstellt und ausführbar gemacht."
+echo
 
-cat > "$QUEUE_SERVICE" <<EOF
+# ------------------------------------------------------------
+# 4. qlen systemd-Service
+# ------------------------------------------------------------
+
+echo "==> 4/5 Erstelle $QUEUE_SERVICE"
+
+cat > "$QUEUE_SERVICE" <<'EOF'
 [Unit]
 Description=Set CAN0 transmit queue length
-After=systemd-networkd.service network-online.target
-Wants=systemd-networkd.service network-online.target
+After=network-online.target
+Wants=network-online.target
 Before=klipper.service
 
 [Service]
 Type=oneshot
-ExecStart=$QUEUE_SCRIPT
+ExecStart=/usr/local/sbin/set-can0-queue.sh
 RemainAfterExit=yes
 Restart=on-failure
 RestartSec=2
@@ -192,166 +211,51 @@ RestartSec=2
 WantedBy=multi-user.target
 EOF
 
-chmod 644 "$QUEUE_SERVICE"
+echo "    OK"
+echo
 
-log "Creating clean shutdown script" "Erstelle Clean-Shutdown-Skript"
+# ------------------------------------------------------------
+# qlen-Service aktivieren
+# ------------------------------------------------------------
 
-cat > "$SHUTDOWN_SCRIPT" <<'EOF'
-#!/bin/sh
-
-if /usr/sbin/ip link show can0 >/dev/null 2>&1; then
-    /usr/sbin/ip link set can0 down || true
-    /sbin/modprobe -r gs_usb || true
-fi
-
-exit 0
-EOF
-
-chmod 755 "$SHUTDOWN_SCRIPT"
-
-log "Creating clean shutdown service" "Erstelle Clean-Shutdown-Service"
-
-cat > "$SHUTDOWN_SERVICE" <<EOF
-[Unit]
-Description=Clean CAN-Bus disconnect before reboot
-After=klipper.service systemd-networkd.service
-Conflicts=shutdown.target
-Before=shutdown.target reboot.target halt.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/true
-ExecStop=$SHUTDOWN_SCRIPT
-TimeoutStopSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-chmod 644 "$SHUTDOWN_SERVICE"
-
-log "Enabling systemd-networkd" "Aktiviere systemd-networkd"
-
-systemctl enable systemd-networkd.service
-
-log "Reloading systemd configuration" "Lade systemd-Konfiguration neu"
+echo "==> Lade systemd-Konfiguration neu"
 
 systemctl daemon-reload
 
-log "Enabling CAN services" "Aktiviere CAN-Services"
+echo "==> Aktiviere set-can0-queue.service"
 
-systemctl enable "$QUEUE_SERVICE"
-systemctl enable "$SHUTDOWN_SERVICE"
+systemctl enable set-can0-queue.service
 
-log "Restarting systemd-networkd" "Starte systemd-networkd neu"
+echo "==> Starte set-can0-queue.service"
 
-systemctl restart systemd-networkd.service
+systemctl start set-can0-queue.service
 
-log "Waiting for CAN interface" "Warte auf CAN-Interface"
+echo "    OK"
+echo
 
-CAN_FOUND="false"
+# ------------------------------------------------------------
+# 5. Prüfung
+# ------------------------------------------------------------
 
-for attempt in {1..30}; do
-    if ip link show "$CAN_INTERFACE" >/dev/null 2>&1; then
-        CAN_FOUND="true"
-        break
-    fi
+echo "============================================================"
+echo " 5/5 Prüfung"
+echo "============================================================"
+echo
 
-    sleep 1
-done
+echo "==> Status von set-can0-queue.service:"
+echo
 
-if [[ "$CAN_FOUND" == "true" ]]; then
-    log "Setting CAN queue immediately to $CAN_QUEUE_LENGTH" "Setze CAN-Queue sofort auf $CAN_QUEUE_LENGTH"
+systemctl status set-can0-queue.service --no-pager || true
 
-    ip link set "$CAN_INTERFACE" txqueuelen "$CAN_QUEUE_LENGTH"
+echo
+echo "==> CAN0 Interface:"
+echo
 
-    systemctl restart set-can0-queue.service
-
-    log "Current CAN configuration" "Aktuelle CAN-Konfiguration"
-
-    ip -details link show "$CAN_INTERFACE"
-else
-    echo
-    if [ "$IS_GERMAN" = true ]; then
-        echo "Hinweis: $CAN_INTERFACE wurde aktuell nicht gefunden."
-        echo "Der Queue-Service wartet beim nächsten Start auf das Interface."
-    else
-        echo "Notice: $CAN_INTERFACE not currently found."
-        echo "The queue service will wait for the interface at next boot."
-    fi
-fi
-
-log "Starting clean shutdown service" "Starte Clean-Shutdown-Service"
-
-systemctl start "can-shutdown.service"
+ip -details link show can0
 
 echo
 echo "============================================================"
-if [ "$IS_GERMAN" = true ]; then
-    echo "Installation abgeschlossen."
-else
-    echo "Installation completed."
-fi
+echo " Installation abgeschlossen."
 echo "============================================================"
 echo
-if [ "$IS_GERMAN" = true ]; then
-    echo "Konfigurationsdatei:"
-    echo "  $NETWORK_FILE"
-    echo
-    echo "Queue-Service:"
-    echo "  $QUEUE_SERVICE"
-    echo
-    echo "Shutdown-Service:"
-    echo "  $SHUTDOWN_SERVICE"
-    echo
-    echo "Backups:"
-    echo "  $BACKUP_DIR"
-else
-    echo "Configuration file:"
-    echo "  $NETWORK_FILE"
-    echo
-    echo "Queue service:"
-    echo "  $QUEUE_SERVICE"
-    echo
-    echo "Shutdown service:"
-    echo "  $SHUTDOWN_SERVICE"
-    echo
-    echo "Backups:"
-    echo "  $BACKUP_DIR"
-fi
-echo
-
-if ip link show "$CAN_INTERFACE" >/dev/null 2>&1; then
-    CURRENT_QUEUE="$(ip -details link show "$CAN_INTERFACE" \
-        | sed -n 's/.*qlen \([0-9]*\).*/\1/p')"
-
-    if [ "$IS_GERMAN" = true ]; then
-        echo "Aktuelle txqueuelen: ${CURRENT_QUEUE:-unbekannt}"
-        echo "Erwartete txqueuelen: $CAN_QUEUE_LENGTH"
-    else
-        echo "Current txqueuelen: ${CURRENT_QUEUE:-unknown}"
-        echo "Expected txqueuelen: $CAN_QUEUE_LENGTH"
-    fi
-else
-    if [ "$IS_GERMAN" = true ]; then
-        echo "can0 ist derzeit nicht vorhanden."
-    else
-        echo "can0 is currently not available."
-    fi
-fi
-
-echo
-if [ "$IS_GERMAN" = true ]; then
-    echo "Nach einem Neustart prüfen mit:"
-    echo "  ip -details link show can0"
-    echo
-    echo "Die Ausgabe sollte enthalten:"
-    echo "  qlen $CAN_QUEUE_LENGTH"
-else
-    echo "Check after a reboot using:"
-    echo "  ip -details link show can0"
-    echo
-    echo "The output should contain:"
-    echo "  qlen $CAN_QUEUE_LENGTH"
-fi
+```
