@@ -37,6 +37,44 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 # ------------------------------------------------------------
+# Prüfen, ob Installation bereits vorhanden ist
+# ------------------------------------------------------------
+
+echo "==> Prüfe, ob die CAN0-Installation bereits vorhanden ist"
+
+INSTALLATION_COMPLETE=true
+
+for file in \
+    "$NETWORK_FILE" \
+    "$DISCONNECT_SCRIPT" \
+    "$SHUTDOWN_SERVICE" \
+    "$QUEUE_SCRIPT" \
+    "$QUEUE_SERVICE"
+do
+    if [[ ! -e "$file" ]]; then
+        INSTALLATION_COMPLETE=false
+        break
+    fi
+done
+
+if [[ "$INSTALLATION_COMPLETE" == true ]]; then
+    echo
+    echo "============================================================"
+    echo " Die CAN0-Installation wurde bereits ausgeführt."
+    echo " Alle benötigten Dateien sind bereits vorhanden."
+    echo
+    echo " Es ist keine erneute Installation erforderlich."
+    echo " Das Skript wird daher jetzt beendet."
+    echo "============================================================"
+    echo
+    exit 0
+fi
+
+echo "    Installation noch nicht vollständig vorhanden."
+echo "    Installation wird fortgesetzt."
+echo
+
+# ------------------------------------------------------------
 # Benötigte Programme prüfen
 # ------------------------------------------------------------
 
@@ -258,4 +296,3 @@ echo "============================================================"
 echo " Installation abgeschlossen."
 echo "============================================================"
 echo
-```
