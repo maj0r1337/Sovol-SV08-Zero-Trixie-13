@@ -38,14 +38,14 @@ start_klipper(){
 update_klipper(){
 	echo -e "${YELLOW}Updating Klipper service to host.${NC}"
 	# uninstall eddy-ng
-	cd ~/eddy-ng  # comment out if not using eddy-ng
-	./install.sh --uninstall  # comment out if not using eddy-ng
+	# cd ~/eddy-ng  # comment out if not using eddy-ng
+	# ./install.sh --uninstall  # comment out if not using eddy-ng
 	# update Klipper
 	cd ~/klipper
 	git pull
 	# re-install eddy-ng
-	cd ~/eddy-ng  # comment out if not using eddy-ng
-	./install.sh  # comment out if not using eddy-ng
+	# cd ~/eddy-ng  # comment out if not using eddy-ng
+	# ./install.sh  # comment out if not using eddy-ng
 	cd
 	read -p "${CYAN}HOST klipper Updated. Check for errors and press [Enter] to continue or Ctrl C to exit..${NC}"
 }
